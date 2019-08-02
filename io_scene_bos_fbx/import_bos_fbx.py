@@ -86,15 +86,16 @@ def import_mesh(file, obj, armature_obj, context):
         me = bpy.data.meshes.new(mesh.name())
         me_obj = bpy.data.objects.new(mesh.name(),me)
         me_obj.select = True
-        context.scene.objects.link(me_obj)
-        context.scene.objects.active = me_obj
+        context.view_layer.active_layer_collection.collection.objects.link(me_obj)
+        me_obj.select_set(True)
+        context.view_layer.objects.active = me_obj
         print(mesh.name())
         try:
             me.vertices.add(len(mesh.vertex_list()))
             me.vertices.foreach_set("co", unpack_list(mesh.vertex_list()))
             me.vertices.foreach_set("normal", unpack_list(mesh.normal_list()))
-            me.tessfaces.add(len(mesh.vertex_index_list()))
-            me.tessfaces.foreach_set("vertices_raw", unpack_face_list_fix(mesh.vertex_index_list()))
+            me.polygons.add(len(mesh.vertex_index_list()))
+            me.polygons.foreach_set("vertices_raw", unpack_face_list_fix(mesh.vertex_index_list()))
         except:
             pass
 
@@ -108,9 +109,9 @@ def import_mesh(file, obj, armature_obj, context):
                 mat.diffuse_color = to_list(material.diffuse())
             if len(mat.specular_color) == len(to_list(material.specular())):
                 mat.specular_color = to_list(material.specular())
-            if len(mat.mirror_color) == len(to_list(material.emissive())):
-                mat.mirror_color = to_list(material.emissive())
-            mat.alpha = material.transparency_factor()
+            #if len(mat.mirror_color) == len(to_list(material.emissive())):
+            #    mat.mirror_color = to_list(material.emissive())
+            #mat.alpha = material.transparency_factor()
             mat.specular_intensity = material.shininess()
             
             # texture
@@ -138,51 +139,51 @@ def import_mesh(file, obj, armature_obj, context):
 
         # material index
         for i, index in enumerate(mesh.material_index_list()):
-            me.tessfaces[i].material_index = index
+            me.polygons[i].material_index = index
             
         # uv
-        layered_uv_list = mesh.layered_uv_list()
-        for i, uv_layer in enumerate(layered_uv_list):
-            me.tessface_uv_textures.new()
-            uvs = uv_layer
-            if len(uvs) == 0:
-                continue
-            ttex = me.tessface_uv_textures[i]
-            count = 0
-            for k, face in enumerate(mesh.vertex_index_list()):
-                tface = ttex.data[k]
-                tessFace = me.tessfaces[k]
-                mat = me_obj.material_slots[tessFace.material_index].material
-                if mat.texture_slots[i] != None:
-                    tface.image = mat.texture_slots[i].texture.image
-                vcount = len(face)
-                if vcount == 3:
-                    tface.uv1 = uvs[count]
-                    count = count + 1
-                    tface.uv2 = uvs[count]
-                    count = count + 1
-                    tface.uv3 = uvs[count]
-                    count = count + 1
-                elif vcount == 4:
-                    tface.uv1 = uvs[count]
-                    count = count + 1
-                    tface.uv2 = uvs[count]
-                    count = count + 1
-                    tface.uv3 = uvs[count]
-                    count = count + 1
-                    tface.uv4 = uvs[count]
-                    count = count + 1
-                else:
-                    count = count + vcount
+        #layered_uv_list = mesh.layered_uv_list()
+        #for i, uv_layer in enumerate(layered_uv_list):
+        #    me.uv_layers.new()
+        #    uvs = uv_layer
+        #    if len(uvs) == 0:
+        #        continue
+        #    ttex = me.uv_layers[i]
+        #    count = 0
+        #    for k, face in enumerate(mesh.vertex_index_list()):
+        #        tface = ttex.data[k]
+        #        tessFace = me.polygons[k]
+        #        mat = me_obj.material_slots[tessFace.material_index].material
+        #        if mat.texture_slots[i] != None:
+        #            tface.image = mat.texture_slots[i].texture.image
+        #        vcount = len(face)
+        #        if vcount == 3:
+        #            tface.uv1 = uvs[count]
+        #            count = count + 1
+        #            tface.uv2 = uvs[count]
+        #            count = count + 1
+        #            tface.uv3 = uvs[count]
+        #            count = count + 1
+        #        elif vcount == 4:
+        #            tface.uv1 = uvs[count]
+        #            count = count + 1
+        #            tface.uv2 = uvs[count]
+        #            count = count + 1
+        #            tface.uv3 = uvs[count]
+        #            count = count + 1
+        #            tface.uv4 = uvs[count]
+        #            count = count + 1
+        #        else:
+        #            count = count + vcount
         
         #print("skey start")
         # shape keys
-        import_shape_keys(mesh, me)
+        #import_shape_keys(mesh, me)
         #print("skey end")
             
         me.update(calc_edges=True)
         global_trans = to_blender_matrix(mesh.global_transform())
-        me_obj.matrix_basis = SWAP_YZ_MATRIX * global_trans
+        me_obj.matrix_basis = SWAP_YZ_MATRIX @ global_trans
         
         # calculate normalized weight
         normalized_weights = {}
@@ -264,7 +265,7 @@ def import_armature(file, obj, context):
         bone_dic[id] = bone
         
         mat = to_blender_matrix(skeleton.global_transform())
-        bone.transform(SWAP_YZ_MATRIX * mat)
+        bone.transform(SWAP_YZ_MATRIX @ mat)
             
     # set parent
     for skeleton_contanier in obj.skeleton_list():
@@ -351,16 +352,6 @@ def import_bos_fbx(file, context, triangulate):
         um_folder = os.path.join(um_folder, "win64bit")
         if sys.version_info[:2] == (3, 7):
             um_folder = os.path.join(um_folder, "python37")
-        if sys.version_info[:2] == (3, 6):
-            um_folder = os.path.join(um_folder, "python36")
-        if sys.version_info[:2] == (3, 5):
-            um_folder = os.path.join(um_folder, "python35")
-        if sys.version_info[:2] == (3, 4):
-            um_folder = os.path.join(um_folder, "python34")
-        if sys.version_info[:2] == (3, 3):
-            um_folder = os.path.join(um_folder, "python33")
-        if sys.version_info[:2] == (3, 2):
-            um_folder = os.path.join(um_folder, "python32")
         if um_folder not in sys.path:
             sys.path.insert(0, um_folder)
         import UMIO
@@ -368,26 +359,6 @@ def import_bos_fbx(file, context, triangulate):
         binary_dir = os.path.join(binary_dir, "umconv")
         if sys.version_info[:2] == (3, 7):
           binary_path = os.path.join(binary_dir, "umconv_bos_fbx2018_win64.exe")
-        if sys.version_info[:2] == (3, 6):
-          binary_path = os.path.join(binary_dir, "umconv_bos_fbx2018_win64.exe")
-        if sys.version_info[:2] == (3, 5):
-          binary_path = os.path.join(binary_dir, "umconv_bos_fbx2017_win64.exe")
-        is_found_converter = os.path.exists(binary_path)
-    else:
-        um_folder = os.path.dirname(os.path.abspath(__file__))
-        um_folder = os.path.join(um_folder, "win32bit")
-        if sys.version_info[:2] == (3, 4):
-            um_folder = os.path.join(um_folder, "python34")
-        if sys.version_info[:2] == (3, 3):
-            um_folder = os.path.join(um_folder, "python33")
-        if sys.version_info[:2] == (3, 2):
-            um_folder = os.path.join(um_folder, "python32")
-        if um_folder not in sys.path:
-            sys.path.insert(0, um_folder)
-        import UMIO
-
-        binary_dir = os.path.join(binary_dir, "umconv")
-        binary_path = os.path.join(binary_dir, "umconv_bos_fbx2015_win32.exe")
         is_found_converter = os.path.exists(binary_path)
 
     bos_tempfile = tempfile.TemporaryFile()

@@ -3,35 +3,35 @@
 
 bl_info = {
     "name": "Bos FBX Import/Export",
-    "author": "Kazuma Hatta",
-    "version": (0, 8, 8),
-    "blender": (2, 7, 7),
+    "author": "Amy Moo",
+    "version": (0, 9, 0),
+    "blender": (2, 80, 0),
     "location": "File > Import/Export > Bos FBX",
     "description": "Import-Export bos, fbx, io: mesh, skeleton",
     "warning": "",
     "wiki_url": "",
     "tracker_url": "",
     "category": "Import-Export"}
-    
+
 if "bpy" in locals():
-    import imp
+    import importlib
     if "import_bos_fbx" in locals():
-        imp.reload(import_bos_fbx)
+        importlib.reload(import_bos_fbx)
     if "export_bos_fbx" in locals():
-        imp.reload(export_bos_fbx)
+        importlib.reload(export_bos_fbx)
 
 import bpy
+from bpy.props import (
+        BoolProperty,
+        FloatProperty,
+        EnumProperty,
+        )
 
-from bpy.props import (StringProperty,
-                       BoolProperty,
-                       FloatProperty,
-                       EnumProperty,
-                       )
-
-from bpy_extras.io_utils import (ImportHelper,
-                                 ExportHelper,
-                                 path_reference_mode
-                                 )
+from bpy_extras.io_utils import (
+        ImportHelper,
+        ExportHelper,
+        path_reference_mode
+        )
 
 class BosFbxExportOperator(bpy.types.Operator, ExportHelper):
     bl_idname = "export_scene.bos_fbx"
@@ -68,9 +68,6 @@ class BosFbxExportOperator(bpy.types.Operator, ExportHelper):
         default=False,\
         )
 
-    fbx_version = EnumProperty(items = \
-        [('FBX SDK 2017', 'FBX SDK 2017', 'FBX SDK 2017'), ('FBX SDK 2018', 'FBX SDK 2018', 'FBX SDK 2018')], name = "SDK")
-
     def execute(self, context):
         import os, sys
         cmd_folder = os.path.dirname(os.path.abspath(__file__))
@@ -82,8 +79,7 @@ class BosFbxExportOperator(bpy.types.Operator, ExportHelper):
                 self.is_text,\
                 self.only_selected,\
                 self.imported_node_property,\
-                self.fit_node_length,\
-                self.fbx_version)
+                self.fit_node_length)
 
         return {'FINISHED'}
 
@@ -101,8 +97,6 @@ class BosFbxExportOperator(bpy.types.Operator, ExportHelper):
 
     def draw(self, context):
         layout = self.layout
-        row = layout.row(align=True)
-        row.prop(self, "fbx_version")
         row = layout.row(align=True)
         row.prop(self, "is_text")
         row = layout.row(align=True)
@@ -150,16 +144,26 @@ def menu_func_import(self, context):
 
 def menu_func_export(self, context):
     self.layout.operator(BosFbxExportOperator.bl_idname, text="Bos FBX (.bos;.fbx)")
-    
+
+classes = (
+    BosFbxExportOperator,
+    BosFbxImportOperator,
+)
+
 def register():
-    bpy.utils.register_module(__name__)
-    bpy.types.INFO_MT_file_import.append(menu_func_import)
-    bpy.types.INFO_MT_file_export.append(menu_func_export)
+    for cls in classes:
+        bpy.utils.register_class(cls)
+
+    bpy.types.TOPBAR_MT_file_import.append(menu_func_import)
+    bpy.types.TOPBAR_MT_file_export.append(menu_func_export)
+
 
 def unregister():
-    bpy.utils.unregister_module(__name__)
-    bpy.types.INFO_MT_file_import.remove(menu_func_import)
-    bpy.types.INFO_MT_file_export.remove(menu_func_export)
-    
+    bpy.types.TOPBAR_MT_file_import.remove(menu_func_import)
+    bpy.types.TOPBAR_MT_file_export.remove(menu_func_export)
+
+    for cls in classes:
+        bpy.utils.unregister_class(cls)
+
 if __name__ == "__main__":
     register()

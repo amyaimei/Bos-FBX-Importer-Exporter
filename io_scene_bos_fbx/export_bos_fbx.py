@@ -31,9 +31,9 @@ def export_skeleton_chain(obj, armature_object, exported_bone_list, parent_id, p
     skeleton.set_size(1.0)
     matrix = pbone.bone.matrix_local.copy()
     if pbone.parent == None:
-        matrix = (SWAP_YZ_MATRIX * armature_object.matrix_basis).inverted() * matrix * ROT_Z90
+        matrix = (SWAP_YZ_MATRIX @ armature_object.matrix_basis).inverted() @ matrix @ ROT_Z90
     else:
-        matrix = (pbone.parent.bone.matrix_local.copy() * ROT_Z90).inverted() * matrix * ROT_Z90
+        matrix = (pbone.parent.bone.matrix_local.copy() @ ROT_Z90).inverted() @ matrix @ ROT_Z90
         
     trans, rot, scale = matrix.decompose()
         
@@ -351,7 +351,7 @@ def export_shape_key(obj, fbx_mesh, mesh_object, context):
             target_shape.set_name(shape.name)
             target_shape.set_base_geometry_node_id(fbx_mesh.id())
             for data in shape.data:
-                target_shape.add_vertex(SWAP_YZ_MATRIX.inverted() * data.co * mesh_rot)
+                target_shape.add_vertex(SWAP_YZ_MATRIX.inverted() @ data.co @ mesh_rot)
                             
             channel.add_target_shape(target_shape)
             blend_shape.add_blend_shape_channel(channel)
@@ -380,8 +380,8 @@ def export_mesh(obj, mesh_object, context):
 
     mesh_rot = mesh_object.matrix_basis.to_quaternion().to_matrix().inverted()
     for v in mesh.vertices:
-        co = SWAP_YZ_MATRIX.inverted() * v.co * mesh_rot
-        no = SWAP_YZ_MATRIX.inverted() * v.normal * mesh_rot
+        co = SWAP_YZ_MATRIX.inverted() @ v.co @ mesh_rot
+        no = SWAP_YZ_MATRIX.inverted() @ v.normal @ mesh_rot
         fbx_mesh.add_vertex(co)
         fbx_mesh.add_normal(no)
 
@@ -402,12 +402,12 @@ def export_mesh(obj, mesh_object, context):
         fbx_material.set_diffuse(to_umvec(material.diffuse_color))
         fbx_material.set_diffuse_factor(1)
         fbx_material.set_specular(to_umvec(material.specular_color))
-        fbx_material.set_emissive(to_umvec(material.mirror_color))
-        fbx_material.set_transparency_factor(material.alpha)
+        #fbx_material.set_emissive(to_umvec(material.mirror_color))
+        #fbx_material.set_transparency_factor(material.alpha)
         fbx_material.set_shininess(material.specular_intensity)
         
         textures = []
-        for texture_slot in material.texture_slots:
+        for texture_slot in material.texture_paint_slots:
             if texture_slot != None:
                 if texture_slot.use:
                     textures.append(texture_slot)
@@ -431,7 +431,7 @@ def export_mesh(obj, mesh_object, context):
             
         fbx_mesh.add_material(fbx_material)
 
-    loc, rot, sca = (SWAP_YZ_MATRIX.inverted() * mesh_object.matrix_basis).decompose()
+    loc, rot, sca = (SWAP_YZ_MATRIX.inverted() @ mesh_object.matrix_basis).decompose()
     fbx_mesh.set_local_translation(to_umvec(loc))
     fbx_mesh.set_local_scaling(to_umvec(sca))
     xyz_rot = rot.normalized().to_euler('XYZ')
@@ -457,8 +457,7 @@ def export_bos_fbx(\
         is_text, \
         only_selected, \
         imported_node_property, \
-        fit_node_length, \
-        fbx_version):
+        fit_node_length):
 
     binary_dir = os.path.dirname(bpy.app.binary_path)
     binary_path = binary_dir
@@ -471,53 +470,12 @@ def export_bos_fbx(\
         um_folder = os.path.join(um_folder, "win64bit")
         if sys.version_info[:2] == (3, 7):
             um_folder = os.path.join(um_folder, "python37")
-        if sys.version_info[:2] == (3, 6):
-            um_folder = os.path.join(um_folder, "python36")
-        if sys.version_info[:2] == (3, 5):
-            um_folder = os.path.join(um_folder, "python35")
-        if sys.version_info[:2] == (3, 4):
-            um_folder = os.path.join(um_folder, "python34")
-        if sys.version_info[:2] == (3, 3):
-            um_folder = os.path.join(um_folder, "python33")
-        if sys.version_info[:2] == (3, 2):
-            um_folder = os.path.join(um_folder, "python32")
         if um_folder not in sys.path:
             sys.path.insert(0, um_folder)
         import UMIO
 
         binary_dir = os.path.join(binary_dir, "umconv")
-        #if fbx_version == "FBX SDK 2011":
-        #    binary_path = os.path.join(binary_dir, "umconv_bos_fbx2011_win64.exe")
-        #if fbx_version == "FBX SDK 2013":
-        #    binary_path = os.path.join(binary_dir, "umconv_bos_fbx2013_win64.exe")
-        #if fbx_version == "FBX SDK 2015":
-        #    binary_path = os.path.join(binary_dir, "umconv_bos_fbx2015_win64.exe")
-        if fbx_version == "FBX SDK 2018":
-            binary_path = os.path.join(binary_dir, "umconv_bos_fbx2018_win64.exe")
-        if fbx_version == "FBX SDK 2017":
-            binary_path = os.path.join(binary_dir, "umconv_bos_fbx2017_win64.exe")
-        is_found_converter = os.path.exists(binary_path)
-
-    else:
-        um_folder = os.path.dirname(os.path.abspath(__file__))
-        um_folder = os.path.join(um_folder, "win32bit")
-        if sys.version_info[:2] == (3, 4):
-            um_folder = os.path.join(um_folder, "python34")
-        if sys.version_info[:2] == (3, 3):
-            um_folder = os.path.join(um_folder, "python33")
-        if sys.version_info[:2] == (3, 2):
-            um_folder = os.path.join(um_folder, "python32")
-        if um_folder not in sys.path:
-            sys.path.insert(0, um_folder)
-        import UMIO
-
-        binary_dir = os.path.join(binary_dir, "umconv")
-        #if fbx_version == "FBX SDK 2011":
-        #    binary_path = os.path.join(binary_dir, "umconv_bos_fbx2011_win32.exe")
-        #if fbx_version == "FBX SDK 2013":
-        #    binary_path = os.path.join(binary_dir, "umconv_bos_fbx2013_win32.exe")
-        if fbx_version == "FBX SDK 2015":
-            binary_path = os.path.join(binary_dir, "umconv_bos_fbx2015_win32.exe")
+        binary_path = os.path.join(binary_dir, "umconv_bos_fbx2018_win64.exe")
         is_found_converter = os.path.exists(binary_path)
 
     bos_tempfile = tempfile.TemporaryFile()
